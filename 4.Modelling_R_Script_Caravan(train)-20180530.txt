@@ -1,0 +1,329 @@
+#target should not be 0 and 1 for train  function 
+
+fitControl <- trainControl(method = "cv", number = 5, classProbs = T, savePredictions = 'final') 
+
+#****************************************************
+#logistics regression
+
+set.seed(1234)
+model_glm<-train(train.data[,-c(1,8,9,14,22,25,31)],train.data$IsBadBuy,method="glm",trControl = fitControl,tuneLength = 3)
+
+
+pred_train_glm<-predict(model_glm,train.data[,-c(1,8,9,14,22,25,31)])
+confusionMatrix(pred_train_glm, train.data$IsBadBuy)
+
+pred_valid_glm<-predict(model_glm,valid.data[,-c(1,8,9,14,22,25,31)])
+confusionMatrix(pred_valid_glm, valid.data$IsBadBuy)
+
+colnames<-c(colnames(test.full[-c(1,2,9,10,15,23,26,32)]))
+IsBadBuy<-predict(model_glm,test.full[colnames],type="prob")$yes
+RefId<-test.full$RefId
+result<-data.frame(RefId,IsBadBuy)
+write.csv(result,"glm_train.csv",row.names=FALSE)
+
+
+
+#****************************************************************
+#decision tree
+
+tree_grid<-expand.grid(cp=0.001)
+
+set.seed(1234)
+model_rpart<-train(train.data[,-c(1,8,9,14,22,25,31)],train.data$IsBadBuy,method="rpart",trControl=fitControl,tuneGrid=tree_grid)
+#summary(model_rpart)
+
+
+pred_train_tree<-predict(model_rpart,train.data[,-c(1,8,9,14,22,25,31)])
+confusionMatrix(pred_train_tree,train.data$IsBadBuy)
+
+pred_valid_tree<-predict(model_rpart,valid.data[,-c(1,8,9,14,22,25,31)])
+confusionMatrix(pred_valid_tree,valid.data$IsBadBuy)
+
+
+colnames<-c(colnames(test.full[-c(1,2,9,10,15,23,26,32)]))
+IsBadBuy<-predict(model_rpart,test.full[colnames],type="prob")$yes
+RefId<-test.full$RefId
+result<-data.frame(RefId,IsBadBuy)
+write.csv(result,"tree_train.csv",row.names=FALSE)
+
+
+#***********************************************************
+#gradient boosting - without dummy
+
+boost_grid<-expand.grid(n.trees=1500,shrinkage=0.1,interaction.depth=4,n.minobsinnode=200)
+set.seed(1234)
+model_boost<-train(train.data[,-c(1,8,9,14,22,25,31)],train.data$IsBadBuy,method="gbm",trControl=fitControl,tuneGrid=boost_grid)
+
+
+pred_train_boost<-predict(model_boost,train.data[,-c(1,8,9,14,22,25,31)])
+confusionMatrix(pred_train_boost,train.data$IsBadBuy)
+
+pred_valid_boost<-predict(model_boost,valid.data[,-c(1,8,9,14,22,25,31)])
+confusionMatrix(pred_valid_boost,valid.data$IsBadBuy)
+
+
+colnames<-c(colnames(test.full[-c(1,2,9,10,15,23,26,32)]))
+IsBadBuy<-predict(model_boost,test.full[colnames],type="prob")$yes
+RefId<-test.full$RefId
+result<-data.frame(RefId,IsBadBuy)
+write.csv(result,"boost_train.csv",row.names=FALSE)
+
+
+
+#***********************************************************
+#gradient boosting - with dummy
+
+boost_grid<-expand.grid(n.trees=1500,shrinkage=0.1,interaction.depth=4,n.minobsinnode=200)
+set.seed(1234)
+model_boost<-train(IsBadBuy~.,train_smote,method="gbm",trControl=fitControl,tuneGrid=boost_grid)
+
+pred_train_boost<-predict(model_boost,train_smote)
+confusionMatrix(pred_train_boost,train_smote$IsBadBuy)
+
+pred_valid_boost<-predict(model_boost,valid_smote)
+confusionMatrix(pred_valid_boost,valid_smote$IsBadBuy)
+
+IsBadBuy<-predict(model_boost,test_smote,type="prob")$yes
+RefId<-test.full$RefId
+result<-data.frame(RefId,IsBadBuy)
+write.csv(result,"boost_train.csv",row.names=FALSE)
+
+
+****************************************************
+#xgboosting - without dummy
+
+xgbGrid <- expand.grid(nrounds = 500, eta=0.1, gamma=1.5, max_depth=6, min_child_weight=1, subsample=1, colsample_bytree=1)
+
+set.seed(1234)
+model_xgboost <- train(IsBadBuy~.,data=train.data[,-c(8,9,14,22,25,31)],method = "xgbTree",  trControl = fitControl,  tuneGrid = xgbGrid, maximize = F )
+	                 
+	                 
+pred_train_xgboost<-predict(model_xgboost,train.data[,-c(1,8,9,14,22,25,31)])
+confusionMatrix (pred_train_xgboost, train.data$IsBadBuy)
+
+pred_valid_xgboost<-predict(model_xgboost,valid.data[,-c(1,8,9,14,22,25,31)])
+confusionMatrix (pred_valid_xgboost , valid.data$IsBadBuy)                 
+
+colnames<-c(colnames(test.full[-c(1,2,9,10,15,23,26,32)]))
+IsBadBuy<-predict(model_xgboost,test.full[colnames],type="prob")$yes
+RefId<-test.full$RefId
+result<-data.frame(RefId,IsBadBuy)
+write.csv(result,"xgboost_train.csv",row.names=FALSE)
+
+****************************************************
+#xgboosting - with dummy
+train_smote<-train.data[,-c(8,9,14,22,25,31)]
+valid_smote<-valid.data[,-c(8,9,14,22,25,31)]
+test_smote<-test.full[,-c(1,2,9,10,15,23,26,32)]
+
+train_smote$IsBadBuy<-ifelse(train_smote$IsBadBuy=="no",0,1)
+valid_smote$IsBadBuy<-ifelse(valid_smote$IsBadBuy=="no",0,1)
+
+train_smote<-dummy.data.frame(train_smote,sep=".")
+valid_smote<-dummy.data.frame(valid_smote,sep=".")
+test_smote<-dummy.data.frame(test_smote,sep=".")
+
+
+train_smote$IsBadBuy<-ifelse(train_smote$IsBadBuy==0,"no","yes")
+valid_smote$IsBadBuy<-ifelse(valid_smote$IsBadBuy==0,"no","yes")
+train_smote$IsBadBuy<-as.factor(train_smote$IsBadBuy)
+valid_smote$IsBadBuy<-as.factor(valid_smote$IsBadBuy)
+
+
+xgbGrid <- expand.grid(nrounds = 500, eta=0.1, gamma=1.5, max_depth=6, min_child_weight=1, subsample=1, colsample_bytree=1)
+
+set.seed(1234)
+model_xgboost <- train(IsBadBuy~.,data=train_smote,method = "xgbTree",  trControl = fitControl,  tuneGrid = xgbGrid,     maximize = F   )
+                 
+                 
+pred_train_xgboost<-predict(model_xgboost,train_smote)
+confusionMatrix (pred_train_xgboost, train_smote$IsBadBuy)
+
+pred_valid_xgboost<-predict(model_xgboost,valid_smote)
+confusionMatrix (pred_valid_xgboost , valid_smote$IsBadBuy)                 
+
+
+IsBadBuy<-predict(model_xgboost,test_smote,type="prob")$yes
+RefId<-test.full$RefId
+result<-data.frame(RefId,IsBadBuy)
+write.csv(result,"xgboost_train.csv",row.names=FALSE)
+
+
+#*********************************************************
+#random forest - without dummy
+
+set.seed(1234)
+model_rf<-train(train.data[,-c(1,8,9,14,22,25,31)],train.data$IsBadBuy,method="rf",trControl = fitControl, tuneGrid=expand.grid(mtry=4))
+
+pred_train_rf<-predict(model_rf,train.data[,-c(1,8,9,14,22,25,31)])
+confusionMatrix(pred_train_rf, train.data$IsBadBuy)
+
+pred_valid_rf<-predict(model_rf,valid.data[,-c(1,8,9,14,22,25,31)])
+confusionMatrix(pred_valid_rf, valid.data$IsBadBuy)
+
+colnames<-c(colnames(test.full[-c(1,2,9,10,15,23,26,32)]))
+IsBadBuy<-predict(model_rf,test.full[colnames],type="prob")$yes
+RefId<-test.full$RefId
+result<-data.frame(RefId,IsBadBuy)
+write.csv(result,"rf_train.csv",row.names=FALSE)
+
+
+
+
+#******************************************************************************************************
+#random forest - with dummy
+
+set.seed(1234)
+model_rf<-train(IsBadBuy~.,train_smote,method="rf",trControl = fitControl, tuneGrid=expand.grid(mtry=4))
+
+pred_train_rf<-predict(model_rf,train_smote)
+confusionMatrix (pred_train_rf, train_smote$IsBadBuy)
+
+pred_valid_rf<-predict(model_rf,valid_smote)
+confusionMatrix (pred_valid_rf, valid_smote$IsBadBuy)
+
+IsBadBuy<-predict(model_rf,test_smote,type="prob")$yes
+RefId<-test.full$RefId
+result<-data.frame(RefId,IsBadBuy)
+write.csv(result,"rf_train.csv",row.names=FALSE)
+
+#*******************************************************************************************************
+#bagging - without dummy
+
+set.seed(1234)
+model_bag<-train(train.data[,-c(1,8,9,14,22,25,31)],train.data$IsBadBuy,data=train.data,method='treebag',trControl = fitControl)
+
+pred_train_bag<-predict(model_bag,train.data[,-c(1,8,9,14,22,25,31)])
+confusionMatrix(pred_train_bag,train.data$IsBadBuy)
+
+pred_valid_bag<-predict(model_bag,valid.data[,-c(1,8,9,14,22,25,31)])
+confusionMatrix(pred_valid_bag,valid.data$IsBadBuy)
+
+colnames<-c(colnames(test.full[-c(1,2,9,10,15,23,26,32)]))
+IsBadBuy<-predict(model_bag,test.full[colnames],type="prob")$yes
+RefId<-test.full$RefId
+result<-data.frame(RefId,IsBadBuy)
+write.csv(result,"bag_train.csv",row.names=FALSE)
+
+
+#*********************************************************
+#bagging - with dummy
+
+set.seed(1234)
+model_bag<-train(IsBadBuy~.,train_smote,method="treebag",trControl = fitControl)
+
+pred_train_bag<-predict(model_bag,train_smote)
+confusionMatrix (pred_train_bag, train_smote$IsBadBuy)
+
+pred_valid_bag<-predict(model_bag,valid_smote)
+confusionMatrix (pred_valid_bag, valid_smote$IsBadBuy)
+
+IsBadBuy<-predict(model_bag,test_smote,type="prob")$yes
+RefId<-test.full$RefId
+result<-data.frame(RefId,IsBadBuy)
+write.csv(result,"bag_train.csv",row.names=FALSE)
+
+
+#*******************************************************************************************************
+#nnet - without dummy
+
+col_list<-paste(c(colnames(train.data[-c(1,8,9,14,22,25,31)])),collapse="+")
+col_list<-paste(c("IsBadBuy~",col_list),collapse="")
+f<-formula(col_list)
+
+fitControl1<-trainControl(method="cv",number=5,classProbs=TRUE,verboseIter=TRUE,preProcOptions=list(thresh=0.01,ICAcomp=3,k=5),savePredictions='final')
+
+set.seed(1234)
+model_nnet<-train(f,train.data,method="nnet",trControl=fitControl1,tuneGrid=expand.grid(size=c(10),decay=c(0.5)))
+
+pred_train_nnet<-predict(model_nnet,train.data[,-c(1,8,9,14,22,25,31)])
+confusionMatrix (pred_train_nnet, train.data$IsBadBuy)
+
+pred_valid_nnet<-predict(model_nnet,valid.data[,-c(1,8,9,14,22,25,31)])
+confusionMatrix (pred_valid_nnet, valid.data$IsBadBuy)
+
+colnames<-c(colnames(test.full[-c(1,2,9,10,15,23,26,32)]))
+IsBadBuy<-predict(model_nnet,test.full[colnames],type="prob")$yes
+RefId<-test.full$RefId
+result<-data.frame(RefId,IsBadBuy)
+write.csv(result,"nnet_train.csv",row.names=FALSE)
+
+
+#*******************************************************************************************************
+#nnet - with dummy
+
+col_list<-paste(c(colnames(train_smote[-c(1)])),collapse="+")
+col_list<-paste(c("IsBadBuy~",col_list),collapse="")
+f<-formula(col_list)
+
+fitControl1<-trainControl(method="cv",number=5,classProbs=TRUE,verboseIter=TRUE,preProcOptions=list(thresh=0.01,ICAcomp=3,k=5),savePredictions='final')
+
+set.seed(1234)
+model_nnet<-train(f,train_smote,method="nnet",trControl=fitControl1,tuneGrid=expand.grid(size=c(10),decay=c(0.5)))
+
+pred_train_nnet<-predict(model_nnet,train_smote)
+confusionMatrix (pred_train_nnet, train_smote$IsBadBuy)
+
+pred_valid_nnet<-predict(model_nnet,valid_smote)
+confusionMatrix (pred_valid_nnet, valid_smote$IsBadBuy)
+
+IsBadBuy<-predict(model_nnet,test_smote,type="prob")$yes
+RefId<-test.full$RefId
+result<-data.frame(RefId,IsBadBuy)
+write.csv(result,"nnet_train.csv",row.names=FALSE)
+
+#*******************************************************************************************************
+#knn - without dummy
+
+col_list<-paste(c(colnames(train.data[-c(1,8,9,14,22,25,31)])),collapse="+")
+col_list<-paste(c("IsBadBuy~",col_list),collapse="")
+f<-formula(col_list)
+
+set.seed(1234)
+model_knn<-train(f,train.data,method="knn",trControl=fitControl1,tuneGrid=expand.grid(k=4))
+
+pred_train_knn<-predict(model_knn,train.data[,-c(1,8,9,14,22,25,31)])
+confusionMatrix (pred_train_knn, train.data$IsBadBuy)
+
+pred_valid_knn<-predict(model_knn,valid.data[,-c(1,8,9,14,22,25,31)])
+confusionMatrix (pred_valid_knn, valid.data$IsBadBuy)
+
+colnames<-c(colnames(test.full[-c(1,2,9,10,15,23,26,32)]))
+IsBadBuy<-predict(model_knn,test.full[colnames],type="prob")$yes
+RefId<-test.full$RefId
+result<-data.frame(RefId,IsBadBuy)
+write.csv(result,"knn_train.csv",row.names=FALSE)
+
+
+
+
+
+#*********************************************************
+#svmRadial - with dummy
+
+set.seed(1234)
+model_svm<-train(IsBadBuy~.,train_smote,method="svmRadial",trControl = fitControl,tuneGrid=expand.grid(C=10,sigma=1))
+
+pred_train_svm<-predict(model_svm,train_smote)
+confusionMatrix (pred_train_svm, train_smote$IsBadBuy)
+
+pred_valid_svm<-predict(model_svm,valid_smote)
+confusionMatrix (pred_valid_svm, valid_smote$IsBadBuy)
+
+IsBadBuy<-predict(model_svm,test_smote,type="prob")$yes
+RefId<-test.full$RefId
+result<-data.frame(RefId,IsBadBuy)
+write.csv(result,"svm_train.csv",row.names=FALSE)
+
+
+
+
+
+
+
+
+
+
+
+
+

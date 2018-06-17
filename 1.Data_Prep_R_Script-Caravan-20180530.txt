@@ -1,0 +1,1220 @@
+library(data.table)
+library(dplyr)
+library(corrplot)
+library(e1071)
+library(caret)
+library(DMwR)
+library(Hmisc)
+library(stringr)
+library(zipcode)
+library(dummies)
+library(ROCR)
+library(gbm)
+
+setwd("C:/Users/dgbudale/Downloads/Data Mining with R/Carvana")
+train.data = fread("training.csv", stringsAsFactors = F)
+test.data = fread("test.csv", stringsAsFactors = F)
+full = rbindlist(list(train.data, test.data), use.names = T, fill = T)
+full[is.na(IsBadBuy),set:="test"]
+full[!is.na(IsBadBuy), set := "train"]
+full[, set := factor(set, levels = c("train", "test"))]
+#full_both<-full
+
+full<-as.data.frame(full)
+
+#full$RefId<-NULL
+full$VehOdo<-as.numeric(full$VehOdo)
+full$MMRAcquisitionAuctionAveragePrice<-as.numeric(full$MMRAcquisitionAuctionAveragePrice)
+full$MMRAcquisitionAuctionCleanPrice<-as.numeric(full$MMRAcquisitionAuctionCleanPrice)
+full$MMRAcquisitionRetailAveragePrice<-as.numeric(full$MMRAcquisitionRetailAveragePrice)
+full$MMRAcquisitonRetailCleanPrice<-as.numeric(full$MMRAcquisitonRetailCleanPrice)
+full$MMRCurrentAuctionAveragePrice<-as.numeric(full$MMRCurrentAuctionAveragePrice)
+full$MMRCurrentAuctionCleanPrice<-as.numeric(full$MMRCurrentAuctionCleanPrice)
+full$MMRCurrentRetailAveragePrice<-as.numeric(full$MMRCurrentRetailAveragePrice)
+full$MMRCurrentRetailCleanPrice<-as.numeric(full$MMRCurrentRetailCleanPrice)
+full$WarrantyCost<-as.numeric(full$WarrantyCost)
+
+full$IsBadBuy<-as.factor(full$IsBadBuy)
+full$Auction<-as.factor(full$Auction)
+full$Make<-as.factor(full$Make)
+full$Model<-as.factor(full$Model)
+full$Trim<-as.factor(full$Trim)
+full$SubModel<-as.factor(full$SubModel)
+full$Color<-as.factor(full$Color)
+full$Transmission<-as.factor(full$Transmission)
+full$WheelTypeID<-as.factor(full$WheelTypeID)
+full$WheelType<-as.factor(full$WheelType)
+full$Nationality<-as.factor(full$Nationality)
+full$Size<-as.factor(full$Size)
+full$TopThreeAmericanName<-as.factor(full$TopThreeAmericanName)
+full$PRIMEUNIT<-as.factor(full$PRIMEUNIT)
+full$AUCGUART<-as.factor(full$AUCGUART)
+full$VNST<-as.factor(full$VNST)
+full$IsOnlineSale<-as.factor(full$IsOnlineSale)
+full$PurchDate<-as.Date(full$PurchDate,"%m/%d/%Y")
+
+#--------------------------------------------------------------------------------------------------------
+#Handling Missing Values
+full$Trim<-as.character(full$Trim)
+full[full$Trim=="",]$Trim<-"Other"
+full$Trim<-as.factor(full$Trim)
+
+full$SubModel<-as.character(full$SubModel)
+full[full$SubModel=="",]$SubModel<-"MISSING"
+full$SubModel<-as.factor(full$SubModel)
+
+full$Color<-as.character(full$Color)
+full[full$Color=="",]$Color<-"MISSING"
+full$Color<-as.factor(full$Color)
+
+full$Transmission<-as.character(full$Transmission)
+full[full$Transmission=="",]$Transmission<-"MISSING"
+full$Transmission<-as.factor(full$Transmission)
+
+
+#--------------------------------------------------------------------------------------------------------
+##chi-sq test for each categorical variable
+
+fact<-select_if(full,is.factor)
+for(i in 2:17) {
+	print(names(fact)[i]) 
+	print(chisq.test(full[,names(fact)[i]],full$IsBadBuy))
+	}
+#--------------------------------------------------------------------------------------------------------
+#multicollinearity
+full$IsBadBuy<-ifelse(full$IsBadBuy==0,0,1)
+num<-select_if(full,is.numeric)
+num<-na.omit(num)
+par(mfrow=c(1,1))
+cor.num<-cor(num)
+corrplot(cor.num,method='number')
+
+#--------------------------------------------------------------------------------------------------------
+#Missing values for numerical variables
+set.seed(1234)
+model_lm1<-lm(MMRAcquisitionAuctionAveragePrice~VehBCost+VehYear+VehicleAge,data=num)
+lm1<-full[is.na(full$MMRAcquisitionAuctionAveragePrice),]
+pred_lm1<-predict(model_lm1,lm1)
+full[is.na(full$MMRAcquisitionAuctionAveragePrice),]$MMRAcquisitionAuctionAveragePrice<-pred_lm1
+
+set.seed(1234)
+model_lm2<-lm(MMRAcquisitionAuctionCleanPrice~VehBCost+VehYear+VehicleAge,data=num)
+lm2<-full[is.na(full$MMRAcquisitionAuctionCleanPrice),]
+pred_lm2<-predict(model_lm2,lm2)
+full[is.na(full$MMRAcquisitionAuctionCleanPrice),]$MMRAcquisitionAuctionCleanPrice<-pred_lm2
+
+set.seed(1234)
+model_lm3<-lm(MMRAcquisitionRetailAveragePrice~VehBCost+VehYear+VehicleAge,data=num)
+lm3<-full[is.na(full$MMRAcquisitionRetailAveragePrice),]
+pred_lm3<-predict(model_lm3,lm3)
+full[is.na(full$MMRAcquisitionRetailAveragePrice),]$MMRAcquisitionRetailAveragePrice<-pred_lm3
+
+set.seed(1234)
+model_lm4<-lm(MMRAcquisitonRetailCleanPrice~VehBCost+VehYear+VehicleAge,data=num)
+lm4<-full[is.na(full$MMRAcquisitonRetailCleanPrice),]
+pred_lm4<-predict(model_lm4,lm4)
+full[is.na(full$MMRAcquisitonRetailCleanPrice),]$MMRAcquisitonRetailCleanPrice<-pred_lm4
+
+set.seed(1234)
+model_lm5<-lm(MMRCurrentAuctionAveragePrice~VehBCost+VehYear+VehicleAge,data=num)
+lm5<-full[is.na(full$MMRCurrentAuctionAveragePrice),]
+pred_lm5<-predict(model_lm5,lm5)
+full[is.na(full$MMRCurrentAuctionAveragePrice),]$MMRCurrentAuctionAveragePrice<-pred_lm5
+
+set.seed(1234)
+model_lm6<-lm(MMRCurrentAuctionCleanPrice~VehBCost+VehYear+VehicleAge,data=num)
+lm6<-full[is.na(full$MMRCurrentAuctionCleanPrice),]
+pred_lm6<-predict(model_lm6,lm6)
+full[is.na(full$MMRCurrentAuctionCleanPrice),]$MMRCurrentAuctionCleanPrice<-pred_lm6
+
+set.seed(1234)
+model_lm7<-lm(MMRCurrentRetailAveragePrice~VehBCost+VehYear+VehicleAge,data=num)
+lm7<-full[is.na(full$MMRCurrentRetailAveragePrice),]
+pred_lm7<-predict(model_lm7,lm7)
+full[is.na(full$MMRCurrentRetailAveragePrice),]$MMRCurrentRetailAveragePrice<-pred_lm7
+
+set.seed(1234)
+model_lm8<-lm(MMRCurrentRetailCleanPrice~VehBCost+VehYear+VehicleAge,data=num)
+lm8<-full[is.na(full$MMRCurrentRetailCleanPrice),]
+pred_lm8<-predict(model_lm8,lm8)
+full[is.na(full$MMRCurrentRetailCleanPrice),]$MMRCurrentRetailCleanPrice<-pred_lm8
+
+
+remove(model_lm1,model_lm2,model_lm3,model_lm4,model_lm5,model_lm6,model_lm7,model_lm8,
+lm1,lm2,lm3,lm4,lm5,lm6,lm7,lm8,pred_lm1,pred_lm2,pred_lm3,pred_lm4,pred_lm5,pred_lm6,pred_lm7,pred_lm8,num,fact)
+
+
+#--------------------------------------------------------------------------------------------------------
+#data engineering
+
+#----Auction
+table(full$Auction)
+chi_auction<-chisq.test(full$IsBadBuy,full$Auction)
+chi_auction
+par(mfrow=c(2,2))
+corrplot(chi_auction$residuals,is.corr = FALSE)
+barplot(table(full$Auction),col="blue",main="Original Distribution of Auction")
+
+set.seed(1234)
+naiveBayes(IsBadBuy ~ Auction,full)
+adesa<-log(0.1913228)-log(0.2443182)
+manheim<-log(0.5675629)-log(0.5252897)
+other<-log(0.2411143)-log(0.2303922)
+
+full$Auction_Prob<-0
+full[full$Auction=="ADESA",]$Auction_Prob<-adesa
+full[full$Auction=="MANHEIM",]$Auction_Prob<-manheim
+full[full$Auction=="OTHER",]$Auction_Prob<-other
+full$Auction<-NULL
+
+#--------------------------------------------------------------------------------------------------------
+#----Make
+sort(table(full$Make))
+chi_make<-chisq.test(full$Make,full$IsBadBuy)
+chi_make
+par(mfrow=c(1,1))
+corrplot(chi_make$residuals,is.corr = FALSE)
+full$Make<-as.character(full$Make)
+full[full$Make %in% c("CADILLAC","CHRYSLER","GMC","HONDA","HUMMER","HYUNDAI","KIA","MITSUBISHI","PLYMOUTH","PONTIAC","SCION","SUBARU",
+"VOLKSWAGEN","TOYOTA SCION","ISUZU","VOLVO","TOYOTA","SATURN","SUZUKI","ACURA"),]$Make<-"VOther"
+full$Make<-as.factor(full$Make)
+chisq.test(full$Make,full$IsBadBuy)
+par(mfrow=c(1,1))
+corrplot((chisq.test(full$Make,full$IsBadBuy))$residuals,is.corr = FALSE)
+
+set.seed(1234)
+mk<-naiveBayes(IsBadBuy ~ Make,full)
+mk
+mk_df<-as.data.frame(mk$tables)
+names(mk_df)[1]<-"IsBadBuy"
+names(mk_df)[2]<-"Make"
+names(mk_df)[3]<-"Freq"
+
+
+full$Make_Prob<-0
+for(i in 1:13) {
+x<-levels(full$Make)[i]
+print(x)
+prob<-log(mk_df[mk_df$IsBadBuy==0 & mk_df$Make==x,]$Freq)-log(mk_df[mk_df$IsBadBuy==1 & mk_df$Make==x,]$Freq)
+print(prob)
+full[full$Make==x,]$Make_Prob<-prob
+}
+full[full$Make=="VOther",]$Make_Prob<-log(0.3381505148)-log(0.3449197861)
+full$Make<-NULL
+
+#--------------------------------------------------------------------------------------------------------
+#---Data engineering from Model
+#--------Model Name
+sort(table(full$Model))
+chi_model<-chisq.test(full$IsBadBuy,full$Model)
+chi_model
+
+full$ModelName<-gsub(list('2WD|4WD|AWD|FWD|4C|6C|V6|V8'),'',full$Model)
+full$ModelName<-trimws(gsub("\\b\\d+\\b", "", full$ModelName))
+full$ModelName<-word(full$ModelName,1)
+full[full$ModelName %in% c("",".",".0L",".5L",".7L"),]$ModelName<-"OTHER"
+full$ModelName<-as.factor(full$ModelName)
+
+sort(table(full$ModelName))
+chi_modelname<-chisq.test(full$IsBadBuy,full$ModelName)
+chi_modelname
+
+df_modelname<-data.frame(chi_modelname$residuals)
+names(df_modelname)[1]<-"IsBadBuy"
+names(df_modelname)[2]<-"ModelName"
+table(df_modelname$IsBadBuy,round(df_modelname$Freq))
+x_model<-as.character(df_modelname[round(df_modelname$Freq)>=-1 & round(df_modelname$Freq)<1,]$ModelName)
+
+tmp_model<-data.frame(sort(table(full$ModelName)))
+names(tmp_model)[1]<-"model"
+names(tmp_model)[2]<-"count"
+x_model1<-as.character(tmp_model[tmp_model$count<=30,]$model)
+
+full$ModelName<-as.character(full$ModelName)
+full[full$ModelName %in% c(x_model,x_model1),]$ModelName<-"Other"
+full[full$ModelName %in% c("ACCORD","ASCENDER","AURA","CAMRY","CHARGER",
+"COBALT","DURANGO","ELANTRA","FIVE","FUSION","GALANT","JOURNEY","LACROSSE",
+"MAGNUM","MILAN","NITRO","S40","SEBRING","SILVERADO","SPECTRA","STRATUS","TAHOE","TITAN","YARIS","OTHER","HHR"),]$ModelName<-"LightRed"
+full$ModelName<-as.factor(full$ModelName)
+
+chisq.test(full$IsBadBuy,full$ModelName)
+par(mfrow=c(1,1))
+corrplot((chisq.test(full$IsBadBuy,full$ModelName))$residuals,is.corr=FALSE)
+
+
+set.seed(1234)
+md<-naiveBayes(IsBadBuy ~ ModelName,full)
+md
+md_df<-as.data.frame(md$tables)
+names(md_df)[1]<-"IsBadBuy"
+names(md_df)[2]<-"Model"
+names(md_df)[3]<-"Freq"
+md_df
+
+full$ModelName_Prob<-0
+for(i in 1:24) {
+x<-levels(full$ModelName)[i]
+print(x)
+prob<-log(md_df[md_df$IsBadBuy==0 & md_df$Model==x,]$Freq)-log(md_df[md_df$IsBadBuy==1 & md_df$Model==x,]$Freq)
+print(prob)
+full[full$ModelName==x,]$ModelName_Prob<-prob
+}
+full$ModelName<-NULL
+
+#---------Drive Type
+full$DriveType<-"Other"
+full[grep("2WD",full$Model,ignore.case = TRUE),]$DriveType<-"2WD"
+full[grep("4WD",full$Model,ignore.case = TRUE),]$DriveType<-"4WD"
+full[grep("AWD",full$Model,ignore.case = TRUE),]$DriveType<-"AWD"
+full[grep("FWD",full$Model,ignore.case = TRUE),]$DriveType<-"FWD"
+full[grep("RWD",full$Model,ignore.case = TRUE),]$DriveType<-"RWD"
+full$DriveType<-as.factor(full$DriveType)
+summary(full$DriveType)
+
+chi_dtype<-chisq.test(full$IsBadBuy,full$DriveType)
+chi_dtype
+corrplot(chi_dtype$residuals,is.corr = FALSE)
+
+full$DriveType<-as.character(full$DriveType)
+full[full$DriveType %in% c("FWD","RWD"),]$DriveType<-"FWD-RWD"
+full$DriveType<-as.factor(full$DriveType)
+
+set.seed(1234)
+dt<-naiveBayes(IsBadBuy ~ DriveType,full)
+dt
+dt_df<-as.data.frame(dt$tables)
+names(dt_df)[1]<-"IsBadBuy"
+names(dt_df)[2]<-"DriveType"
+names(dt_df)[3]<-"Freq"
+dt_df
+
+full$DriveType_Prob<-0
+for(i in 1:5) {
+x<-levels(full$DriveType)[i]
+print(x)
+prob<-log(dt_df[dt_df$IsBadBuy==0 & dt_df$DriveType==x,]$Freq)-log(dt_df[dt_df$IsBadBuy==1 & dt_df$DriveType==x,]$Freq)
+print(prob)
+full[full$DriveType==x,]$DriveType_Prob<-prob
+}
+full$DriveType<-NULL
+
+
+
+#---------Cylinder
+full$Cylinder<-"Other"
+full[grep(list('I4|V4|4C'),full$Model,ignore.case = TRUE),]$Cylinder<-"4C"
+full[grep(list('V5|5C'),full$Model,ignore.case = TRUE),]$Cylinder<-"5C"
+full[grep(list('V6|6C'),full$Model,ignore.case = TRUE),]$Cylinder<-"6C"
+#full[grep(list('V7|7C'),full$Model,ignore.case = TRUE),]$Cylinder<-"7C"
+full[grep(list('V8|8C'),full$Model,ignore.case = TRUE),]$Cylinder<-"8C"
+full$Cylinder<-as.factor(full$Cylinder)
+summary(full$Cylinder)
+
+chi_cylinder<-chisq.test(full$IsBadBuy,full$Cylinder)
+chi_cylinder
+corrplot(chi_cylinder$residuals,is.corr=FALSE)
+
+full$Cylinder<-as.character(full$Cylinder)
+full[full$Cylinder=="5C",]$Cylinder<-"Other"
+full$Cylinder<-as.factor(full$Cylinder)
+
+
+set.seed(1234)
+cy<-naiveBayes(IsBadBuy ~ Cylinder,full)
+cy
+cy_df<-as.data.frame(cy$tables)
+names(cy_df)[1]<-"IsBadBuy"
+names(cy_df)[2]<-"Cylinder"
+names(cy_df)[3]<-"Freq"
+cy_df
+
+full$Cylinder_Prob<-0
+for(i in 1:4) {
+x<-levels(full$Cylinder)[i]
+print(x)
+prob<-log(cy_df[cy_df$IsBadBuy==0 & cy_df$Cylinder==x,]$Freq)-log(cy_df[cy_df$IsBadBuy==1 & cy_df$Cylinder==x,]$Freq)
+print(prob)
+full[full$Cylinder==x,]$Cylinder_Prob<-prob
+}
+full$Cylinder<-NULL
+
+
+#---------Engine Size
+full$Engine1<-"Other"
+str_engine<-unique(str_extract(full$Model, "\\d+\\.*\\d*\\L"))
+
+#full$Engine<-'Other'
+for (i in 2:33) 
+{
+#print(str[i])
+y<-str_engine[i]
+full[grep(y,full$Model,ignore.case=TRUE),]$Engine1<-y
+}
+full$Engine1<-as.factor(full$Engine1)
+
+#chi_engine<-chisq.test(full$IsBadBuy,full$Engine)
+#chi_engine
+#corrplot(chi_engine$residuals,is.corr = FALSE)
+#full$Engine<-as.character(full$Engine)
+#full[full$Engine %in% c("4.1L","5.6L","4.5L","1.5L","1.8L","2.5L","3.3L","3.6L","3.7L","3.8L","4.8L","5.3L","5.9L"),]$Engine<-"Other"
+#full$Engine<-as.factor(full$Engine)
+#chisq.test(full$IsBadBuy,full$Engine)
+#corrplot((chisq.test(full$IsBadBuy,full$Engine))$residuals,is.corr = FALSE)
+
+
+#----Injection
+full$Injection<-'Other'
+full$Injection<-word(full$Model,-1)
+full[grep(list('EFI'),full$Model,ignore.case=TRUE),]$Injection<-'EFI'
+full[grep(list('MPI'),full$Model,ignore.case=TRUE),]$Injection<-'MPI'
+full[grep(list('MFI'),full$Model,ignore.case=TRUE),]$Injection<-'MFI'
+full[grep(list('SPI'),full$Model,ignore.case=TRUE),]$Injection<-'SPI'
+full[grep(list('SFI'),full$Model,ignore.case=TRUE),]$Injection<-'SFI'
+full[grep(list('DI'),full$Model,ignore.case=TRUE),]$Injection<-'DI'
+
+#full[full$Injection %in% c('EFI','EF'),]$Injection<-'EFI'
+#full[full$Injection %in% c('MPI','MP'),]$Injection<-'MPI'
+#full[full$Injection %in% c('MFI','MF'),]$Injection<-'MFI'
+#full[full$Injection %in% c('SPI','SP'),]$Injection<-'SPI'
+#full[full$Injection %in% c('SFI','SF'),]$Injection<-'SFI'
+
+#full[!full$Injection %in% c('EFI','MPI','MFI','SPI','SFI'),]$Injection<-'Other'
+full[!full$Injection %in% c('EFI','EF','MPI','MP','MFI','MF','SPI','SP','SFI','SF','DI'),]$Injection<-'Other'
+
+full$Injection<-as.factor(full$Injection)
+summary(full$Injection)
+
+chi_inj<-chisq.test(full$Injection,full$IsBadBuy)
+chi_inj
+corrplot(chi_inj$residuals,is.corr = FALSE)
+
+
+set.seed(1234)
+ij<-naiveBayes(IsBadBuy ~ Injection,full)
+ij
+ij_df<-as.data.frame(ij$tables)
+names(ij_df)[1]<-"IsBadBuy"
+names(ij_df)[2]<-"Injection"
+names(ij_df)[3]<-"Freq"
+ij_df
+
+full$Injection_Prob<-0
+for(i in 1:11) {
+x<-levels(full$Injection)[i]
+print(x)
+prob<-log(ij_df[ij_df$IsBadBuy==0 & ij_df$Injection==x,]$Freq)-log(ij_df[ij_df$IsBadBuy==1 & ij_df$Injection==x,]$Freq)
+print(prob)
+full[full$Injection==x,]$Injection_Prob<-prob
+}
+full$Injection<-NULL
+
+
+full$Model<-NULL
+
+#--------------------------------------------------------------------------------------------------------
+#---Data engineering from SubModel
+#--------Car Type
+full$CarType<-"OTHER"
+full[grep("HATCHBACK",full$SubModel,ignore.case=TRUE),]$CarType<-"HATCHBACK"
+full[grep("SEDAN",full$SubModel,ignore.case=TRUE),]$CarType<-"SEDAN"
+full[grep("SUV",full$SubModel,ignore.case=TRUE),]$CarType<-"SUV"
+full[grep("CROSSOVER",full$SubModel,ignore.case=TRUE),]$CarType<-"CROSSOVER"
+full[grep("COUPE",full$SubModel,ignore.case=TRUE),]$CarType<-"COUPE"
+full[grep("CONVERTIBLE",full$SubModel,ignore.case=TRUE),]$CarType<-"CONVERTIBLE"
+full[grep("CAB",full$SubModel,ignore.case=TRUE),]$CarType<-"CAB"
+full[grep("UTILITY",full$SubModel,ignore.case=TRUE),]$CarType<-"UTILITY"
+full[grep("SPORT",full$SubModel,ignore.case=TRUE),]$CarType<-"SPORT"
+full[grep("MINIVAN",full$SubModel,ignore.case=TRUE),]$CarType<-"MINIVAN"
+full[grep("PASSENGER",full$SubModel,ignore.case=TRUE),]$CarType<-"PASSENGER"
+full[grep("CUV",full$SubModel,ignore.case=TRUE),]$CarType<-"CUV"
+full[grep("WAGON",full$SubModel,ignore.case=TRUE),]$CarType<-"WAGON"
+full$CarType<-as.factor(full$CarType)
+summary(full$CarType)
+
+chi_cartype<-chisq.test(full$IsBadBuy,full$CarType)
+chi_cartype
+corrplot(chi_cartype$residuals,is.corr = FALSE)
+
+full$CarType<-as.character(full$CarType)
+full[full$CarType %in% c("CROSSOVER","CUV","HATCHBACK","MINIVAN","PASSENGER","UTILITY"),]$CarType<-"OTHER"
+full[full$CarType %in% c("CAB","WAGON"),]$CarType<-"Rem"
+full$CarType<-as.factor(full$CarType)
+chisq.test(full$IsBadBuy,full$CarType)
+corrplot((chisq.test(full$IsBadBuy,full$CarType))$residuals,is.corr = FALSE)
+
+
+set.seed(1234)
+ct<-naiveBayes(IsBadBuy ~ CarType,full)
+ct
+ct_df<-as.data.frame(ct$tables)
+names(ct_df)[1]<-"IsBadBuy"
+names(ct_df)[2]<-"CarType"
+names(ct_df)[3]<-"Freq"
+ct_df
+
+full$CarType_Prob<-0
+for(i in 1:7) {
+x<-levels(full$CarType)[i]
+print(x)
+prob<-log(ct_df[ct_df$IsBadBuy==0 & ct_df$CarType==x,]$Freq)-log(ct_df[ct_df$IsBadBuy==1 & ct_df$CarType==x,]$Freq)
+print(prob)
+full[full$CarType==x,]$CarType_Prob<-prob
+}
+full$CarType<-NULL
+
+
+
+#----------Doors
+full$Doors<-"Other"
+full[grep("2D",full$SubModel,ignore.case=TRUE),]$Doors<-"2D"
+full[grep("3D",full$SubModel,ignore.case=TRUE),]$Doors<-"3D"
+full[grep("4D",full$SubModel,ignore.case=TRUE),]$Doors<-"4D"
+full[grep("5D",full$SubModel,ignore.case=TRUE),]$Doors<-"5D"
+full$Doors<-as.factor(full$Doors)
+summary(full$Doors)
+
+chi_doors<-chisq.test(full$IsBadBuy,full$Doors)
+chi_doors
+corrplot(chi_doors$residuals,is.corr = FALSE)
+
+full$Doors<-as.character(full$Doors)
+full[full$Doors=="4D",]$Doors<-"Other"
+full$Doors<-as.factor(full$Doors)
+
+
+set.seed(1234)
+dr<-naiveBayes(IsBadBuy ~ Doors,full)
+dr
+dr_df<-as.data.frame(dr$tables)
+names(dr_df)[1]<-"IsBadBuy"
+names(dr_df)[2]<-"Doors"
+names(dr_df)[3]<-"Freq"
+dr_df
+
+full$Doors_Prob<-0
+for(i in 1:4) {
+x<-levels(full$Doors)[i]
+print(x)
+prob<-log(dr_df[dr_df$IsBadBuy==0 & dr_df$Doors==x,]$Freq)-log(dr_df[dr_df$IsBadBuy==1 & dr_df$Doors==x,]$Freq)
+print(prob)
+full[full$Doors==x,]$Doors_Prob<-prob
+}
+full$Doors<-NULL
+
+
+#-------Engine Size
+full$Engine2<-"Other"
+str_engine<-unique(str_extract(full$SubModel, "\\d+\\.*\\d*\\L"))
+
+
+for (i in 2:35) 
+{
+#print(str[i])
+y<-str_engine[i]
+full[grep(y,full$SubModel,ignore.case=TRUE),]$Engine2<-y
+}
+full$Engine2<-as.factor(full$Engine2)
+
+
+#--------Final Engine Size
+full$Engine1<-as.character(full$Engine1)
+full$Engine2<-as.character(full$Engine2)
+
+full$Engine<-'Other'
+
+full$Engine<-ifelse(full$Engine1!="Other" & full$Engine2=="Other",full$Engine1,
+                    (ifelse(full$Engine1=="Other" & full$Engine2!="Other",full$Engine2,(ifelse(full$Engine1!="Other" & full$Engine2!="Other",full$Engine2,'Other')))))
+                    
+full$Engine<-as.factor(full$Engine)                    
+full$Engine1<-NULL
+full$Engine2<-NULL  
+
+
+chi_engine<-chisq.test(full$IsBadBuy,full$Engine)
+chi_engine
+corrplot(chi_engine$residuals,is.corr = FALSE)
+
+full$Engine<-as.character(full$Engine)
+full[full$Engine %in% c("4.1L","6.8L","4.5L","6.2L","5.2L","2.9L","1.5L","1.8L","1L","2.3L","3.6L","4.2L","4.3L","4.5L","5.3L","1.7L"),]$Engine<-"Other"
+full$Engine<-as.factor(full$Engine)
+chisq.test(full$IsBadBuy,full$Engine)
+corrplot((chisq.test(full$IsBadBuy,full$Engine))$residuals,is.corr = FALSE)
+
+
+par(mfrow=c(2,1))
+chisq.test(full$IsBadBuy,full$Engine)
+corrplot((chisq.test(full$IsBadBuy,full$Engine))$residuals,is.corr = FALSE)
+full$Engine<-as.character(full$Engine)
+full[full$Engine %in% c("1.6L","1.9L","2.0L","2.5L","3.2L","3.8L","6.0L"),]$Engine<-"LightBlue"
+full[full$Engine %in% c("2.4L","2.8L","3.3L","3.7L","3.9L","4.7L","4.8L","5.6L"),]$Engine<-"LightRed"
+full$Engine<-as.factor(full$Engine)
+chisq.test(full$IsBadBuy,full$Engine)
+corrplot((chisq.test(full$IsBadBuy,full$Engine))$residuals,is.corr = FALSE)
+
+
+set.seed(1234)
+eng<-naiveBayes(IsBadBuy ~ Engine,full)
+eng
+eng_df<-as.data.frame(eng$tables)
+names(eng_df)[1]<-"IsBadBuy"
+names(eng_df)[2]<-"Engine"
+names(eng_df)[3]<-"Freq"
+eng_df
+
+full$Engine_Prob<-0
+for(i in 1:14) {
+x<-levels(full$Engine)[i]
+print(x)
+prob<-log(eng_df[eng_df$IsBadBuy==0 & eng_df$Engine==x,]$Freq)-log(eng_df[eng_df$IsBadBuy==1 & eng_df$Engine==x,]$Freq)
+print(prob)
+full[full$Engine==x,]$Engine_Prob<-prob
+}
+full$Engine<-NULL
+
+full$SubModel<-NULL
+
+#--------------------------------------------------------------------------------------------------------
+#------------Trim
+
+chi_trim<-chisq.test(full$IsBadBuy,full$Trim)
+chi_trim
+
+df_trim<-data.frame(chi_trim$residuals)
+names(df_trim)[1]<-"IsBadBuy"
+names(df_trim)[2]<-"Trim"
+table(df_trim$IsBadBuy,round(df_trim$Freq))
+x_trim<-as.character(df_trim[round(df_trim$Freq)==0 ,]$Trim)
+
+tmp_trim<-data.frame(sort(table(full$Trim)))
+names(tmp_trim)[1]<-"trim"
+names(tmp_trim)[2]<-"count"
+x_trim1<-as.character(tmp_trim[tmp_trim$count<=200,]$trim) #change from 100
+
+full$Trim<-as.character(full$Trim)
+full[full$Trim %in% c(x_trim,x_trim1),]$Trim<-"Other"
+full$Trim<-as.factor(full$Trim)
+sort(table(full$Trim))
+chisq.test(full$IsBadBuy,full$Trim)
+par(mfrow=c(1,1))
+corrplot((chisq.test(full$IsBadBuy,full$Trim))$residuals,is.corr = FALSE)
+
+set.seed(1234)
+tr<-naiveBayes(IsBadBuy ~ Trim,full)
+tr
+tr_df<-as.data.frame(tr$tables)
+names(tr_df)[1]<-"IsBadBuy"
+names(tr_df)[2]<-"Trim"
+names(tr_df)[3]<-"Freq"
+tr_df
+
+full$Trim_Prob<-0
+for(i in 1:29) {
+x<-levels(full$Trim)[i]
+print(x)
+prob<-log(tr_df[tr_df$IsBadBuy==0 & tr_df$Trim==x,]$Freq)-log(tr_df[tr_df$IsBadBuy==1 & tr_df$Trim==x,]$Freq)
+print(prob)
+full[full$Trim==x,]$Trim_Prob<-prob
+}
+full$Trim<-NULL
+
+
+#--------------------------------------------------------------------------------------------------------
+#------------Color
+
+
+summary(full$Color)
+chi_color<-chisq.test(full$IsBadBuy,full$Color)
+chi_color
+par(mfrow=c(2,1))
+corrplot(chi_color$residuals,is.corr = FALSE)
+full$Color<-as.character(full$Color)
+full[full$Color %in% c("MISSING","PINK","NULL"),]$Color<-"OTHER"
+full[full$Color=="NOT AVAIL",]$Color<-"NOT_AVAIL"
+full$Color<-as.factor(full$Color)
+chisq.test(full$IsBadBuy,full$Color)
+corrplot((chisq.test(full$IsBadBuy,full$Color))$residuals,is.corr = FALSE)
+
+set.seed(1234)
+col<-naiveBayes(IsBadBuy ~ Color,full)
+col
+col_df<-as.data.frame(col$tables)
+names(col_df)[1]<-"IsBadBuy"
+names(col_df)[2]<-"Color"
+names(col_df)[3]<-"Freq"
+col_df
+
+full$Color_Prob<-0
+for(i in 1:16) {
+x<-levels(full$Color)[i]
+print(x)
+prob<-log(col_df[col_df$IsBadBuy==0 & col_df$Color==x,]$Freq)-log(col_df[col_df$IsBadBuy==1 & col_df$Color==x,]$Freq)
+print(prob)
+full[full$Color==x,]$Color_Prob<-prob
+}
+full$Color<-NULL
+
+#--------------------------------------------------------------------------------------------------------
+#------------Transmission
+
+summary(full$Transmission)
+chi_Transmission<-chisq.test(full$IsBadBuy,full$Transmission)
+chi_Transmission
+par(mfrow=c(2,1))
+corrplot(chi_Transmission$residuals,is.corr = FALSE)
+full$Transmission<-as.character(full$Transmission)
+full[full$Transmission %in% c("MISSING","Manual","NULL"),]$Transmission<-"MANUAL"
+full$Transmission<-as.factor(full$Transmission)
+summary(full$Transmission)
+chisq.test(full$IsBadBuy,full$Transmission)
+corrplot((chisq.test(full$IsBadBuy,full$Transmission))$residuals,is.corr=FALSE)
+
+set.seed(1234)
+tr<-naiveBayes(IsBadBuy ~ Transmission,full)
+tr
+tr_df<-as.data.frame(tr$tables)
+names(tr_df)[1]<-"IsBadBuy"
+names(tr_df)[2]<-"Transmission"
+names(tr_df)[3]<-"Freq"
+tr_df
+
+full$Transmission_Prob<-0
+for(i in 1:2) {
+x<-levels(full$Transmission)[i]
+print(x)
+prob<-log(tr_df[tr_df$IsBadBuy==0 & tr_df$Transmission==x,]$Freq)-log(tr_df[tr_df$IsBadBuy==1 & tr_df$Transmission==x,]$Freq)
+print(prob)
+full[full$Transmission==x,]$Transmission_Prob<-prob
+}
+full$Transmission<-NULL
+
+
+#--------------------------------------------------------------------------------------------------------
+#------------WheelType
+
+
+full$WheelTypeID<-NULL
+summary(full$WheelType)
+chi_wheeltype<-chisq.test(full$IsBadBuy,full$WheelType)
+chi_wheeltype
+par(mfrow=c(2,1))
+corrplot(chi_wheeltype$residuals,is.corr = FALSE)
+full$WheelType<-as.character(full$WheelType)
+full[full$WheelType %in% c("NULL"),]$WheelType<-"NOT_AVAIL"
+#full[full$WheelType %in% c("Alloy","Special"),]$WheelType<-"OTHER"
+full$WheelType<-as.factor(full$WheelType)
+summary(full$WheelType)
+chisq.test(full$IsBadBuy,full$WheelType)
+corrplot((chisq.test(full$IsBadBuy,full$WheelacType))$residuals,is.corr = FALSE)
+
+set.seed(1234)
+wh<-naiveBayes(IsBadBuy ~ WheelType,full)
+wh
+wh_df<-as.data.frame(wh$tables)
+names(wh_df)[1]<-"IsBadBuy"
+names(wh_df)[2]<-"WheelType"
+names(wh_df)[3]<-"Freq"
+wh_df
+
+full$WheelType_Prob<-0
+for(i in 1:4) {
+x<-levels(full$WheelType)[i]
+print(x)
+prob<-log(wh_df[wh_df$IsBadBuy==0 & wh_df$WheelType==x,]$Freq)-log(wh_df[wh_df$IsBadBuy==1 & wh_df$WheelType==x,]$Freq)
+print(prob)
+full[full$WheelType==x,]$WheelType_Prob<-prob
+}
+full$WheelType<-NULL
+
+
+#--------------------------------------------------------------------------------------------------------
+#------------Nationality
+summary(full$Nationality)
+chi_nation<-chisq.test(full$IsBadBuy,full$Nationality)
+chi_nation
+corrplot(chi_nation$residuals,is.corr = FALSE)
+full$Nationality<-as.character(full$Nationality)
+full[full$Nationality=="NULL",]$Nationality<-"OTHER"
+full[full$Nationality=="OTHER ASIAN",]$Nationality<-"OTHER_ASIAN"
+full[full$Nationality=="TOP LINE ASIAN",]$Nationality<-"TOP_LINE_ASIAN "
+full$Nationality<-as.factor(full$Nationality)
+chisq.test(full$IsBadBuy,full$Nationality)
+corrplot((chisq.test(full$IsBadBuy,full$Nationality))$residuals,is.corr=FALSE)
+summary(full$Nationality)
+
+
+set.seed(1234)
+nt<-naiveBayes(IsBadBuy ~ Nationality,full)
+nt
+nt_df<-as.data.frame(nt$tables)
+names(nt_df)[1]<-"IsBadBuy"
+names(nt_df)[2]<-"Nationality"
+names(nt_df)[3]<-"Freq"
+nt_df
+
+full$Nationality_Prob<-0
+for(i in 1:4) {
+x<-levels(full$Nationality)[i]
+print(x)
+prob<-log(nt_df[nt_df$IsBadBuy==0 & nt_df$Nationality==x,]$Freq)-log(nt_df[nt_df$IsBadBuy==1 & nt_df$Nationality==x,]$Freq)
+print(prob)
+full[full$Nationality==x,]$Nationality_Prob<-prob
+}
+full$Nationality<-NULL
+ 
+#--------------------------------------------------------------------------------------------------------
+#------------Size
+summary(full$Size)
+chi_size<-chisq.test(full$IsBadBuy,full$Size)
+chi_size
+par(mfrow=c(2,1))
+corrplot(chi_size$residuals,is.corr = FALSE)
+full$Size<-as.character(full$Size)
+full[full$Size %in% c("NULL"),]$Size<-"VOTHER"
+full[full$Size %in% c("SMALL SUV"),]$Size<-"SMALL_SUV"
+full[full$Size %in% c("SMALL TRUCK"),]$Size<-"SMALL_TRUCK"
+full[full$Size=="LARGE SUV",]$Size<-"LARGE_SUV"
+full[full$Size=="LARGE TRUCK",]$Size<-"LARGE_TRUCK"
+full[full$Size=="MEDIUM SUV",]$Size<-"MEDIUM_SUV"
+full$Size<-as.factor(full$Size)
+summary(full$Size)
+chisq.test(full$IsBadBuy,full$Size)
+corrplot((chisq.test(full$IsBadBuy,full$Size))$residuals,is.corr = FALSE) 
+
+set.seed(1234)
+sz<-naiveBayes(IsBadBuy ~ Size,full)
+sz
+sz_df<-as.data.frame(sz$tables)
+names(sz_df)[1]<-"IsBadBuy"
+names(sz_df)[2]<-"Size"
+names(sz_df)[3]<-"Freq"
+sz_df
+
+full$Size_Prob<-0
+for(i in 1:12) {
+x<-levels(full$Size)[i]
+print(x)
+prob<-log(sz_df[sz_df$IsBadBuy==0 & sz_df$Size==x,]$Freq)-log(sz_df[sz_df$IsBadBuy==1 & sz_df$Size==x,]$Freq)
+print(prob)
+full[full$Size==x,]$Size_Prob<-prob
+}
+full[full$Size=="VOTHER",]$Size_Prob<-log(7.811646e-05)
+full$Size<-NULL
+
+#--------------------------------------------------------------------------------------------------------
+#------------Top3AmericanName
+summary(full$TopThreeAmericanName)
+chi_top<-chisq.test(full$IsBadBuy,full$TopThreeAmericanName)
+chi_top
+par(mfrow=c(2,1))
+corrplot(chi_top$residuals,is.corr = FALSE)
+full$TopThreeAmericanName<-as.character(full$TopThreeAmericanName)
+full[full$TopThreeAmericanName=="NULL",]$TopThreeAmericanName<-"OTHER"
+full$TopThreeAmericanName<-as.factor(full$TopThreeAmericanName)
+chisq.test(full$IsBadBuy,full$TopThreeAmericanName)
+corrplot((chisq.test(full$IsBadBuy,full$TopThreeAmericanName))$residuals,is.corr=FALSE)
+
+set.seed(1234)
+tt<-naiveBayes(IsBadBuy ~ TopThreeAmericanName,full)
+tt
+tt_df<-as.data.frame(tt$tables)
+names(tt_df)[1]<-"IsBadBuy"
+names(tt_df)[2]<-"TopThreeAmericanName"
+names(tt_df)[3]<-"Freq"
+tt_df
+
+full$TopThreeAmericanName_Prob<-0
+for(i in 1:4) {
+x<-levels(full$TopThreeAmericanName)[i]
+print(x)
+prob<-log(tt_df[tt_df$IsBadBuy==0 & tt_df$TopThreeAmericanName==x,]$Freq)-log(tt_df[tt_df$IsBadBuy==1 & tt_df$TopThreeAmericanName==x,]$Freq)
+print(prob)
+full[full$TopThreeAmericanName==x,]$TopThreeAmericanName_Prob<-prob
+}
+full$TopThreeAmericanName<-NULL
+
+#--------------------------------------------------------------------------------------------------------
+#------------PrimeUnit
+summary(full$PRIMEUNIT)
+chi_punit<-chisq.test(full$IsBadBuy,full$PRIMEUNIT)
+chi_punit
+par(mfrow=c(2,1))
+corrplot(chi_punit$residuals,is.corr = FALSE)
+full$PRIMEUNIT<-as.character(full$PRIMEUNIT)
+full[full$PRIMEUNIT=="NULL",]$PRIMEUNIT<-"NOT_AVAIL"
+full[full$PRIMEUNIT!="NOT_AVAIL",]$PRIMEUNIT<-"AVAIL"
+full$PRIMEUNIT<-as.factor(full$PRIMEUNIT)
+chisq.test(full$IsBadBuy,full$PRIMEUNIT)
+corrplot((chisq.test(full$IsBadBuy,full$PRIMEUNIT))$residuals,is.corr=FALSE)
+
+set.seed(1234)
+pu<-naiveBayes(IsBadBuy ~ PRIMEUNIT,full)
+pu
+pu_df<-as.data.frame(pu$tables)
+names(pu_df)[1]<-"IsBadBuy"
+names(pu_df)[2]<-"PRIMEUNIT"
+names(pu_df)[3]<-"Freq"
+pu_df
+
+full$PRIMEUNIT_Prob<-0
+for(i in 1:2) {
+x<-levels(full$PRIMEUNIT)[i]
+print(x)
+prob<-log(pu_df[pu_df$IsBadBuy==0 & pu_df$PRIMEUNIT==x,]$Freq)-log(pu_df[pu_df$IsBadBuy==1 & pu_df$PRIMEUNIT==x,]$Freq)
+print(prob)
+full[full$PRIMEUNIT==x,]$PRIMEUNIT_Prob<-prob
+}
+full$PRIMEUNIT<-NULL
+
+#--------------------------------------------------------------------------------------------------------
+#------------AucGuart
+summary(full$AUCGUART)
+chi_aucg<-chisq.test(full$IsBadBuy,full$AUCGUART)
+chi_aucg
+par(mfrow=c(2,1))
+corrplot(chi_aucg$residuals,is.corr = FALSE)
+full$AUCGUART<-as.character(full$AUCGUART)
+full[full$AUCGUART == "NULL",]$AUCGUART<-"NOT_AVAIL"
+full[full$AUCGUART!= "NOT_AVAIL",]$AUCGUART<-"AVAIL"
+full$AUCGUART<-as.factor(full$AUCGUART)
+chisq.test(full$IsBadBuy,full$AUCGUART)
+corrplot((chisq.test(full$IsBadBuy,full$AUCGUART))$residuals,is.corr = FALSE)
+
+set.seed(1234)
+au<-naiveBayes(IsBadBuy ~ AUCGUART,full)
+au
+au_df<-as.data.frame(au$tables)
+names(au_df)[1]<-"IsBadBuy"
+names(au_df)[2]<-"AUCGUART"
+names(au_df)[3]<-"Freq"
+au_df
+
+full$AUCGUART_Prob<-0
+for(i in 1:2) {
+x<-levels(full$AUCGUART)[i]
+print(x)
+prob<-log(au_df[au_df$IsBadBuy==0 & au_df$AUCGUART==x,]$Freq)-log(au_df[au_df$IsBadBuy==1 & au_df$AUCGUART==x,]$Freq)
+print(prob)
+full[full$AUCGUART==x,]$AUCGUART_Prob<-prob
+}
+full$AUCGUART<-NULL
+
+#--------------------------------------------------------------------------------------------------------
+#------------IsOnlineSale
+summary(full$IsOnlineSale)
+chi_isonlinesale<-chisq.test(full$IsBadBuy,full$IsOnlineSale)
+chi_isonlinesale
+
+set.seed(1234)
+io<-naiveBayes(IsBadBuy ~ IsOnlineSale,full)
+io
+io_df<-as.data.frame(io$tables)
+names(io_df)[1]<-"IsBadBuy"
+names(io_df)[2]<-"IsOnlineSale"
+names(io_df)[3]<-"Freq"
+io_df
+
+full$IsOnlineSale_Prob<-0
+for(i in 1:2) {
+x<-levels(full$IsOnlineSale)[i]
+print(x)
+prob<-log(io_df[io_df$IsBadBuy==0 & io_df$IsOnlineSale==x,]$Freq)-log(io_df[io_df$IsBadBuy==1 & io_df$IsOnlineSale==x,]$Freq)
+print(prob)
+full[full$IsOnlineSale==x,]$IsOnlineSale_Prob<-prob
+}
+full$IsOnlineSale<-NULL
+
+#--------------------------------------------------------------------------------------------------------
+#------------City
+names(full)[16]<-"zip"
+data(zipcode)
+full$zip<-clean.zipcodes(full$zip)
+full<-merge(full,zipcode[,c("zip","city")],by="zip")
+
+
+sort(table(full$city))
+chi_city<-chisq.test(full$IsBadBuy,full$city)
+chi_city
+par(mfrow=c(1,1))
+corrplot(chi_city$residuals,is.corr=FALSE)
+
+df_city<-data.frame(chi_city$residuals)
+names(df_city)[1]<-"IsBadBuy"
+names(df_city)[2]<-"City"
+table(df_city$IsBadBuy,round(df_city$Freq))
+x_city<-as.character(df_city[round(df_city$Freq)>=-1 & round(df_city$Freq)<=1 ,]$City)
+
+tmp_city<-data.frame(sort(table(full$city)))
+names(tmp_city)[1]<-"city"
+names(tmp_city)[2]<-"count"
+x_city1<-as.character(tmp_city[tmp_city$count<=200,]$city)
+
+full[full$city %in% c(x_city,x_city1),]$city<-"Other"
+full[full$city %in% c("Belton","Carmel","Hutchins","Lexington","Plainfield","Tracy"),]$city<-"Other"
+
+full$city<-as.factor(full$city)
+chisq.test(full$IsBadBuy,full$city)
+corrplot((chisq.test(full$IsBadBuy,full$city))$residuals,is.corr=FALSE)
+
+sort(table(full$city))
+
+full$zip<-NULL
+
+set.seed(1234)
+city<-naiveBayes(IsBadBuy ~ city,full)
+city
+city_df<-as.data.frame(city$tables)
+names(city_df)[1]<-"IsBadBuy"
+names(city_df)[2]<-"city"
+names(city_df)[3]<-"Freq"
+city_df
+
+full$City_Prob<-0
+for(i in 1:15) {
+x<-levels(full$city)[i]
+print(x)
+prob<-log(city_df[city_df$IsBadBuy==0 & city_df$city==x,]$Freq)-log(city_df[city_df$IsBadBuy==1 & city_df$city==x,]$Freq)
+print(prob)
+full[full$city==x,]$City_Prob<-prob
+}
+full$city<-NULL
+
+#--------------------------------------------------------------------------------------------------------
+#------------State
+
+summary(full$VNST)
+par(mfrow=c(1,1))
+chi_state<-chisq.test(full$IsBadBuy,full$VNST)
+chi_state
+corrplot(chi_state$residuals,is.corr = FALSE)
+sort(table(full$VNST))
+full$VNST<-as.character(full$VNST)
+full[full$VNST %in% c("WI","NJ","NM","AL","CO","MA","UT","MI","NY"),]$VNST<-"OTHER"
+full[full$VNST %in% c("ID","NH","TN","MO","NE","WV"),]$VNST<-"LightRed"
+full[full$VNST %in% c("IA","IL","IN","LA","MD"),]$VNST<-"LightBlue"
+full$VNST<-as.factor(full$VNST)
+chisq.test(full$IsBadBuy,full$VNST)
+corrplot((chisq.test(full$IsBadBuy,full$VNST))$residuals,is.corr=FALSE)
+
+
+#names(full)[43]<-"City"
+#names(full)[26]<-"State"
+
+set.seed(1234)
+VNST<-naiveBayes(IsBadBuy ~ VNST,full)
+VNST
+VNST_df<-as.data.frame(VNST$tables)
+names(VNST_df)[1]<-"IsBadBuy"
+names(VNST_df)[2]<-"VNST"
+names(VNST_df)[3]<-"Freq"
+VNST_df
+str(full$VNST)
+
+full$VNST_Prob<-0
+for(i in 1:21) {
+x<-levels(full$VNST)[i]
+print(x)
+prob<-log(VNST_df[VNST_df$IsBadBuy==0 & VNST_df$VNST==x,]$Freq)-log(VNST_df[VNST_df$IsBadBuy==1 & VNST_df$VNST==x,]$Freq)
+print(prob)
+full[full$VNST==x,]$VNST_Prob<-prob
+}
+full$VNST<-NULL
+
+
+
+#--------------------------------------------------------------------------------------------------------
+#------------BYRNO
+par(mfrow=c(2,1))
+chi_byr<-chisq.test(full$IsBadBuy,full$BYRNO)
+chi_byr
+corrplot(chi_byr$residuals,is.corr=FALSE)
+
+byr<-as.data.frame(chisq.test(full$BYRNO,full$IsBadBuy)$residuals)
+byrnum<-as.character(byr[byr$Freq>=-2 & byr$Freq<=2,]$full.BYRNO)
+
+full$BYRNO<-as.character(full$BYRNO)
+full[full$BYRNO %in% byrnum,]$BYRNO<-"Other"
+full[full$BYRNO %in% c("10415","22155","53100","99742","99791"),]$BYRNO<-"Other"
+full$BYRNO<-as.factor(full$BYRNO)
+table(full$BYRNO)
+chisq.test(full$IsBadBuy,full$BYRNO)
+corrplot((chisq.test(full$IsBadBuy,full$BYRNO))$residuals,is.corr=FALSE)
+
+
+
+set.seed(1234)
+BYRNO<-naiveBayes(IsBadBuy ~ BYRNO,full)
+BYRNO
+BYRNO_df<-as.data.frame(BYRNO$tables)
+names(BYRNO_df)[1]<-"IsBadBuy"
+names(BYRNO_df)[2]<-"BYRNO"
+names(BYRNO_df)[3]<-"Freq"
+BYRNO_df
+str(full$BYRNO)
+
+full$BYRNO_Prob<-0
+for(i in 1:6) {
+x<-levels(full$BYRNO)[i]
+print(x)
+prob<-log(BYRNO_df[BYRNO_df$IsBadBuy==0 & BYRNO_df$BYRNO==x,]$Freq)-log(BYRNO_df[BYRNO_df$IsBadBuy==1 & BYRNO_df$BYRNO==x,]$Freq)
+print(prob)
+full[full$BYRNO==x,]$BYRNO_Prob<-prob
+}
+full$BYRNO<-NULL
+
+#--------------------------------------------------------------------------------------------------------
+#Purchase Date
+
+full$PurchYear<-format(full$PurchDate,"%Y")
+full$PurchQuarters<-quarters(full$PurchDate)
+full$PurchMonth<-months(full$PurchDate)
+full$WeekDay<-weekdays(full$PurchDate)
+full$PurchDay<-format(full$PurchDate,"%d")
+
+full$PurchYear<-as.factor(full$PurchYear)
+full$PurchQuarters<-as.factor(full$PurchQuarters)
+full$PurchMonth<-as.factor(full$PurchMonth)
+full$WeekDay<-as.factor(full$WeekDay)
+full$PurchDay<-as.factor(full$PurchDay)
+
+full$PurchDate<-NULL
+
+#----------------Purch Year
+table(full$PurchYear)
+chi_pyear<-chisq.test(full$IsBadBuy,full$PurchYear)
+par(mfrow=c(2,2))
+corrplot(chi_pyear$residuals,is.cor = FALSE)
+barplot(table(full$PurchYear),col="blue",main="Original Distribution of Purchase Year")
+
+#----------------Purch Quarters
+table(full$PurchQuarters)
+chi_pqtrs<-chisq.test(full$IsBadBuy,full$PurchQuarters)
+par(mfrow=c(2,2))
+corrplot(chi_pqtrs$residuals,is.cor = FALSE)
+barplot(table(full$PurchQuarters),col="blue",main="Original Distribution of Purchase Quarter")
+
+set.seed(1234)
+PurchQuarters<-naiveBayes(IsBadBuy ~ PurchQuarters,full)
+PurchQuarters
+PurchQuarters_df<-as.data.frame(PurchQuarters$tables)
+names(PurchQuarters_df)[1]<-"IsBadBuy"
+names(PurchQuarters_df)[2]<-"PurchQuarters"
+names(PurchQuarters_df)[3]<-"Freq"
+PurchQuarters_df
+str(full$PurchQuarters)
+
+full$PurchQuarters_Prob<-0
+for(i in 1:4) {
+x<-levels(full$PurchQuarters)[i]
+print(x)
+prob<-log(PurchQuarters_df[PurchQuarters_df$IsBadBuy==0 & PurchQuarters_df$PurchQuarters==x,]$Freq)-log(PurchQuarters_df[PurchQuarters_df$IsBadBuy==1 & PurchQuarters_df$PurchQuarters==x,]$Freq)
+print(prob)
+full[full$PurchQuarters==x,]$PurchQuarters_Prob<-prob
+}
+full$PurchQuarters<-NULL
+
+#----------------Purch Month
+table(full$PurchMonth)
+chi_pmonth<-chisq.test(full$IsBadBuy,full$PurchMonth)
+par(mfrow=c(2,2))
+corrplot(chi_pmonth$residuals,is.cor = FALSE)
+barplot(table(full$PurchMonth),col="blue",main="Original Distribution of Purchase Month")
+
+set.seed(1234)
+PurchMonth<-naiveBayes(IsBadBuy ~ PurchMonth,full)
+PurchMonth
+PurchMonth_df<-as.data.frame(PurchMonth$tables)
+names(PurchMonth_df)[1]<-"IsBadBuy"
+names(PurchMonth_df)[2]<-"PurchMonth"
+names(PurchMonth_df)[3]<-"Freq"
+PurchMonth_df
+str(full$PurchMonth)
+
+full$PurchMonth_Prob<-0
+for(i in 1:12) {
+x<-levels(full$PurchMonth)[i]
+print(x)
+prob<-log(PurchMonth_df[PurchMonth_df$IsBadBuy==0 & PurchMonth_df$PurchMonth==x,]$Freq)-log(PurchMonth_df[PurchMonth_df$IsBadBuy==1 & PurchMonth_df$PurchMonth==x,]$Freq)
+print(prob)
+full[full$PurchMonth==x,]$PurchMonth_Prob<-prob
+}
+full$PurchMonth<-NULL
+
+#-----------------Week Day
+table(full$WeekDay)
+chi_pweekday<-chisq.test(full$IsBadBuy,full$WeekDay)
+par(mfrow=c(2,2))
+corrplot(chi_pweekday$residuals,is.cor = FALSE)
+barplot(table(full$WeekDay),col="blue",main="Original Distribution of Weekday")
+full$WeekDay<-as.character(full$WeekDay)
+full[full$WeekDay %in% c("Friday","Saturday","Sunday"),]$WeekDay<-"Weekend"
+full$WeekDay<-as.factor(full$WeekDay)
+corrplot(chisq.test(full$IsBadBuy,full$WeekDay)$residuals,is.cor = FALSE)
+barplot(table(full$WeekDay),col="blue",main="Original Distribution of Weekday")
+
+set.seed(1234)
+WeekDay<-naiveBayes(IsBadBuy ~ WeekDay,full)
+WeekDay
+WeekDay_df<-as.data.frame(WeekDay$tables)
+names(WeekDay_df)[1]<-"IsBadBuy"
+names(WeekDay_df)[2]<-"WeekDay"
+names(WeekDay_df)[3]<-"Freq"
+WeekDay_df
+str(full$WeekDay)
+
+full$WeekDay_Prob<-0
+for(i in 1:5) {
+x<-levels(full$WeekDay)[i]
+print(x)
+prob<-log(WeekDay_df[WeekDay_df$IsBadBuy==0 & WeekDay_df$WeekDay==x,]$Freq)-log(WeekDay_df[WeekDay_df$IsBadBuy==1 & WeekDay_df$WeekDay==x,]$Freq)
+print(prob)
+full[full$WeekDay==x,]$WeekDay_Prob<-prob
+}
+full$WeekDay<-NULL
+
+#---------------PurchDay
+table(full$PurchDay)
+chi_pday<-chisq.test(full$IsBadBuy,full$PurchDay)
+chi_pday
+par(mfrow=c(2,2))
+corrplot(chi_pday$residuals,is.cor = FALSE)
+barplot(table(full$PurchDay),col="blue",main="Original Distribution of Weekday")
+full$PurchDay<-as.character(full$PurchDay)
+full[full$PurchDay < 11,]$PurchDay<-"Blue"
+full[full$PurchDay >= 11 & full$PurchDay<=21,]$PurchDay<-"Red"
+full[!full$PurchDay %in% c("Red","Blue"),]$PurchDay<-"Other"
+full$PurchDay<-as.factor(full$PurchDay)
+chisq.test(full$IsBadBuy,full$PurchDay)
+corrplot((chisq.test(full$IsBadBuy,full$PurchDay))$residuals,is.cor = FALSE)
+barplot(table(full$PurchDay),col="blue",main="New Distribution of Purchday")
+
+set.seed(1234)
+PurchDay<-naiveBayes(IsBadBuy ~ PurchDay,full)
+PurchDay
+PurchDay_df<-as.data.frame(PurchDay$tables)
+names(PurchDay_df)[1]<-"IsBadBuy"
+names(PurchDay_df)[2]<-"PurchDay"
+names(PurchDay_df)[3]<-"Freq"
+PurchDay_df
+str(full$PurchDay)
+
+full$PurchDay_Prob<-0
+for(i in 1:3) {
+x<-levels(full$PurchDay)[i]
+print(x)
+prob<-log(PurchDay_df[PurchDay_df$IsBadBuy==0 & PurchDay_df$PurchDay==x,]$Freq)-log(PurchDay_df[PurchDay_df$IsBadBuy==1 & PurchDay_df$PurchDay==x,]$Freq)
+print(prob)
+full[full$PurchDay==x,]$PurchDay_Prob<-prob
+}
+full$PurchDay<-NULL
+
+#-----------VehicleAge
+table(full$VehicleAge)
+chi_vage<-chisq.test(full$IsBadBuy,full$VehicleAge)
+chi_vage
+par(mfrow=c(2,1))
+corrplot(chi_vage$residuals,is.corr = FALSE)
+full[full$VehicleAge==0,"VehicleAge"]<-1
+full$VehicleAge<-as.factor(full$VehicleAge)
+chisq.test(full$IsBadBuy,full$VehicleAge)
+corrplot(chisq.test(full$IsBadBuy,full$VehicleAge)$residuals,is.corr = FALSE)
+

@@ -1,0 +1,47 @@
+#full<-full1
+
+#col<-c("IsBadBuy","set","Auction_Prob","Make_Prob","ModelName_Prob","DriveType_Prob","Cylinder_Prob","Injection_Prob",
+#"CarType_Prob","Doors_Prob","Engine_Prob","Trim_Prob","Color_Prob","Transmission_Prob","WheelType_Prob","Nationality_Prob",
+#"Size_Prob","TopThreeAmericanName_Prob","PRIMEUNIT_Prob","IsOnlineSale_Prob","City_Prob","VNST_Prob","BYRNO_Prob",
+#"PurchQuarters_Prob","PurchMonth_Prob","WeekDay_Prob","PurchDay_Prob","VehicleAge","VehOdo","VehBCost","WarrantyCost","MMRAcquisitonRetailCleanPrice")
+
+ignore<-c("AUCGUART_Prob","PurchYear","VehYear")
+
+full<-full[,!colnames(full) %in% c(ignore)]
+str(full)
+full$IsBadBuy<-ifelse(full$IsBadBuy==0,"no","yes")
+full$IsBadBuy<-as.factor(full$IsBadBuy)
+
+train.full<-full[full$set=="train",]
+train.full$set<-NULL
+train.full$RefId<-NULL
+test.full<-full[full$set=="test",]
+test.full$set<-NULL
+
+#partitioning
+set.seed(1234)
+ind<-sample(2, nrow(train.full), replace=TRUE, prob=c(0.6,0.4))
+train.data<-train.full[ind==1,]
+valid.data<-train.full[ind==2,]
+
+#balancing
+par(mfrow=c(1,2))
+prop.table(table(train.data$IsBadBuy))
+barplot(prop.table(table(train.data$IsBadBuy)),col = "orange",main="Class Imbalance on Target variable")
+set.seed(1234)
+train.data<-SMOTE(IsBadBuy~.,train.data,perc.over=350,perc.under=150)
+prop.table(table(train.data$IsBadBuy))
+barplot(prop.table(table(train.data$IsBadBuy)),col = "orange",main="Class Imbalance on Target variable")
+
+ignore<-c("City_Prob","Cylinder_Prob")
+
+set.seed(1234)
+model_glm<-glm(IsBadBuy~.,data=train.data[,!colnames(train.data) %in% c(ignore)],family=binomial(link="logit"))
+summary(model_glm)
+pred<-predict(model_glm,valid.data[,!colnames(train.data) %in% c(ignore)],type="response")
+pred<-ifelse(pred>0.5,1,0)
+
+pr2 <- prediction(pred,valid.data$IsBadBuy)
+auc2 <- performance(pr2, measure = "auc")
+auc <- auc2@y.values[[1]] #0.5272373
+auc 

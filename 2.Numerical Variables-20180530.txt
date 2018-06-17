@@ -1,0 +1,197 @@
+#--------------------------------------------------------------------------------------------------------
+#------------MMR Variables
+
+
+summary(full$MMRAcquisitionAuctionAveragePrice)
+par(mfrow=c(1,2))
+boxplot(full$MMRAcquisitionAuctionAveragePrice)
+full%>%group_by(VehicleAge)%>%summarise(meanMMR1=mean(MMRAcquisitionAuctionAveragePrice))
+full[full$RefId %in% c(48231, 61780, 22292,15318) & full$VehicleAge==1,]$MMRAcquisitionAuctionAveragePrice<-round(mean(full[full$VehicleAge==1,]$MMRAcquisitionAuctionAveragePrice))
+full[full$RefId %in% c(48231, 61780, 22292,15318) & full$VehicleAge==2,]$MMRAcquisitionAuctionAveragePrice<-round(mean(full[full$VehicleAge==2,]$MMRAcquisitionAuctionAveragePrice))
+boxplot(full$MMRAcquisitionAuctionAveragePrice)
+summary(full$MMRAcquisitionAuctionAveragePrice)
+
+
+summary(full$MMRAcquisitionAuctionCleanPrice)
+par(mfrow=c(1,2))
+boxplot(full$MMRAcquisitionAuctionCleanPrice)
+full%>%group_by(VehicleAge)%>%summarise(meanMMR1=mean(MMRAcquisitionAuctionCleanPrice))
+full[full$RefId %in% c(48231, 61780, 22292,15318) & full$VehicleAge==1,]$MMRAcquisitionAuctionCleanPrice<-round(mean(full[full$VehicleAge==1,]$MMRAcquisitionAuctionCleanPrice))
+full[full$RefId %in% c(48231, 61780, 22292,15318) & full$VehicleAge==2,]$MMRAcquisitionAuctionCleanPrice<-round(mean(full[full$VehicleAge==2,]$MMRAcquisitionAuctionCleanPrice))
+boxplot(full$MMRAcquisitionAuctionCleanPrice)
+summary(full$MMRAcquisitionAuctionCleanPrice)
+
+
+summary(full$MMRAcquisitionRetailAveragePrice)
+par(mfrow=c(1,2))
+boxplot(full$MMRAcquisitionRetailAveragePrice)
+full%>%group_by(VehicleAge)%>%summarise(meanMMR1=mean(MMRAcquisitionRetailAveragePrice))
+full[full$RefId %in% c(48231, 61780, 22292,15318) & full$VehicleAge==1,]$MMRAcquisitionRetailAveragePrice<-round(mean(full[full$VehicleAge==1,]$MMRAcquisitionRetailAveragePrice))
+full[full$RefId %in% c(48231, 61780, 22292,15318) & full$VehicleAge==2,]$MMRAcquisitionRetailAveragePrice<-round(mean(full[full$VehicleAge==2,]$MMRAcquisitionRetailAveragePrice))
+boxplot(full$MMRAcquisitionRetailAveragePrice)
+summary(full$MMRAcquisitionRetailAveragePrice)
+
+
+summary(full$MMRAcquisitonRetailCleanPrice)
+par(mfrow=c(1,2))
+boxplot(full$MMRAcquisitonRetailCleanPrice)
+full%>%group_by(VehicleAge)%>%summarise(meanMMR1=mean(MMRAcquisitonRetailCleanPrice))
+full[full$RefId %in% c(48231, 61780, 22292,15318) & full$VehicleAge==1,]$MMRAcquisitonRetailCleanPrice<-round(mean(full[full$VehicleAge==1,]$MMRAcquisitonRetailCleanPrice))
+full[full$RefId %in% c(48231, 61780, 22292,15318) & full$VehicleAge==2,]$MMRAcquisitonRetailCleanPrice<-round(mean(full[full$VehicleAge==2,]$MMRAcquisitonRetailCleanPrice))
+boxplot(full$MMRAcquisitonRetailCleanPrice)
+summary(full$MMRAcquisitonRetailCleanPrice)
+
+
+summary(full$MMRCurrentAuctionAveragePrice)
+par(mfrow=c(1,2))
+boxplot(full$MMRCurrentAuctionAveragePrice)
+full%>%group_by(VehicleAge)%>%summarise(meanMMR1=mean(MMRCurrentAuctionAveragePrice))
+full[full$RefId %in% c(48231, 61780, 22292,15318) & full$VehicleAge==1,]$MMRCurrentAuctionAveragePrice<-round(mean(full[full$VehicleAge==1,]$MMRCurrentAuctionAveragePrice))
+full[full$RefId %in% c(48231, 61780, 22292,15318) & full$VehicleAge==2,]$MMRCurrentAuctionAveragePrice<-round(mean(full[full$VehicleAge==2,]$MMRCurrentAuctionAveragePrice))
+boxplot(full$MMRCurrentAuctionAveragePrice)
+summary(full$MMRCurrentAuctionAveragePrice)
+
+
+
+summary(full$MMRCurrentAuctionCleanPrice)
+par(mfrow=c(1,2))
+boxplot(full$MMRCurrentAuctionCleanPrice)
+full%>%group_by(VehicleAge)%>%summarise(meanMMR1=mean(MMRCurrentAuctionCleanPrice))
+full[full$RefId %in% c(48231, 61780, 22292,15318) & full$VehicleAge==1,]$MMRCurrentAuctionCleanPrice<-round(mean(full[full$VehicleAge==1,]$MMRCurrentAuctionCleanPrice))
+full[full$RefId %in% c(48231, 61780, 22292,15318) & full$VehicleAge==2,]$MMRCurrentAuctionCleanPrice<-round(mean(full[full$VehicleAge==2,]$MMRCurrentAuctionCleanPrice))
+boxplot(full$MMRCurrentAuctionCleanPrice)
+summary(full$MMRCurrentAuctionCleanPrice)
+
+
+summary(full$MMRCurrentRetailAveragePrice)
+par(mfrow=c(1,2))
+boxplot(full$MMRCurrentRetailAveragePrice)
+full%>%group_by(VehicleAge)%>%summarise(meanMMR1=mean(MMRCurrentRetailAveragePrice))
+full[full$RefId %in% c(48231, 61780, 22292,15318) & full$VehicleAge==1,]$MMRCurrentRetailAveragePrice<-round(mean(full[full$VehicleAge==1,]$MMRCurrentRetailAveragePrice))
+full[full$RefId %in% c(48231, 61780, 22292,15318) & full$VehicleAge==2,]$MMRCurrentRetailAveragePrice<-round(mean(full[full$VehicleAge==2,]$MMRCurrentRetailAveragePrice))
+boxplot(full$MMRCurrentRetailAveragePrice)
+summary(full$MMRCurrentRetailAveragePrice)
+
+
+summary(full$MMRCurrentRetailCleanPrice)
+par(mfrow=c(1,2))
+boxplot(full$MMRCurrentRetailCleanPrice)
+full%>%group_by(VehicleAge)%>%summarise(meanMMR1=mean(MMRCurrentRetailCleanPrice))
+full[full$RefId %in% c(48231, 61780, 22292,15318) & full$VehicleAge==1,]$MMRCurrentRetailCleanPrice<-round(mean(full[full$VehicleAge==1,]$MMRCurrentRetailCleanPrice))
+full[full$RefId %in% c(48231, 61780, 22292,15318) & full$VehicleAge==2,]$MMRCurrentRetailCleanPrice<-round(mean(full[full$VehicleAge==2,]$MMRCurrentRetailCleanPrice))
+boxplot(full$MMRCurrentRetailCleanPrice)
+summary(full$MMRCurrentRetailCleanPrice)
+
+
+
+
+#--------------------------------------------------------------------------------------------------------
+#------------VehOdo
+summary(full$VehOdo)
+par(mfrow=c(1,2))
+boxplot(full$VehOdo)
+full%>%group_by(VehicleAge)%>%summarise(meanVehOd=mean(VehOdo))
+full[full$VehOdo<10000 & full$VehicleAge==7,]$VehOdo<-round(mean(full[full$VehicleAge==7,]$VehOdo))
+full[full$VehOdo<10000 & full$VehicleAge==6,]$VehOdo<-round(mean(full[full$VehicleAge==6,]$VehOdo))
+full[full$VehOdo<10000 & full$VehicleAge==5,]$VehOdo<-round(mean(full[full$VehicleAge==5,]$VehOdo))
+full[full$VehOdo<10000 & full$VehicleAge==4,]$VehOdo<-round(mean(full[full$VehicleAge==4,]$VehOdo))
+full[full$VehOdo<10000 & full$VehicleAge==3,]$VehOdo<-round(mean(full[full$VehicleAge==3,]$VehOdo))
+full[full$VehOdo<10000 & full$VehicleAge==2,]$VehOdo<-round(mean(full[full$VehicleAge==2,]$VehOdo))
+full[full$VehOdo<10000 & full$VehicleAge==1,]$VehOdo<-round(mean(full[full$VehicleAge==1,]$VehOdo))
+boxplot(full$VehOdo)
+summary(full$VehOdo)
+
+summary(full$VehBCost)
+full%>%group_by(VehicleAge)%>%summarise(meanVehOd=mean(VehBCost))
+par(mfrow=c(1,2))
+boxplot(full$VehBCost)
+full[full$VehBCost<1000,]
+full[full$VehBCost<1000 & full$VehicleAge==3,]$VehBCost<-round(mean(full[full$VehicleAge==3,]$VehBCost))
+full[full$VehBCost<1000 & full$VehicleAge==8,]$VehBCost<-round(mean(full[full$VehicleAge==8,]$VehBCost))
+full[full$VehBCost>30000 & full$VehicleAge==1,]$VehBCost<-round(mean(full[full$VehicleAge==1,]$VehBCost))
+full[full$VehBCost>30000 & full$VehicleAge==2,]$VehBCost<-round(mean(full[full$VehicleAge==2,]$VehBCost))
+full[full$VehBCost>30000 & full$VehicleAge==3,]$VehBCost<-round(mean(full[full$VehicleAge==3,]$VehBCost))
+full[full$VehBCost>30000 & full$VehicleAge==7,]$VehBCost<-round(mean(full[full$VehicleAge==7,]$VehBCost))
+boxplot(full$VehBCost)
+summary(full$VehBCost)
+
+
+summary(full$WarrantyCost)
+full%>%group_by(VehicleAge)%>%summarise(meanWarCost=mean(WarrantyCost))
+par(mfrow=c(1,2))
+boxplot(full$WarrantyCost)
+full[full$WarrantyCost>4300 & full$VehicleAge==3,]$WarrantyCost<-round(mean(full[full$VehicleAge==3,]$WarrantyCost))
+full[full$WarrantyCost>4300 & full$VehicleAge==4,]$WarrantyCost<-round(mean(full[full$VehicleAge==4,]$WarrantyCost))
+full[full$WarrantyCost>4300 & full$VehicleAge==5,]$WarrantyCost<-round(mean(full[full$VehicleAge==5,]$WarrantyCost))
+full[full$WarrantyCost>4300 & full$VehicleAge==6,]$WarrantyCost<-round(mean(full[full$VehicleAge==6,]$WarrantyCost))
+full[full$WarrantyCost>4300 & full$VehicleAge==7,]$WarrantyCost<-round(mean(full[full$VehicleAge==7,]$WarrantyCost))
+full[full$WarrantyCost>4300 & full$VehicleAge==8,]$WarrantyCost<-round(mean(full[full$VehicleAge==8,]$WarrantyCost))
+full[full$WarrantyCost>4300 & full$VehicleAge==9,]$WarrantyCost<-round(mean(full[full$VehicleAge==9,]$WarrantyCost))
+summary(full$WarrantyCost)
+boxplot(full$WarrantyCost)
+
+full_scale<-full[,c("MMRAcquisitionAuctionAveragePrice","MMRAcquisitionAuctionCleanPrice","MMRAcquisitionRetailAveragePrice","MMRAcquisitonRetailCleanPrice",
+"MMRCurrentAuctionAveragePrice","MMRCurrentAuctionCleanPrice","MMRCurrentRetailAveragePrice","MMRCurrentRetailCleanPrice")]
+par(mfrow=c(2,1))
+barplot(sapply(full_scale,var),horiz = T,las=1,cex.names = 0.8,col="orange",main="Before scale - Regular",axisnames=FALSE)
+
+full$MMRAcquisitionAuctionAveragePrice<-as.numeric(scale(full$MMRAcquisitionAuctionAveragePrice,center=TRUE,scale=TRUE))
+full$MMRAcquisitionAuctionCleanPrice<-as.numeric(scale(full$MMRAcquisitionAuctionCleanPrice,center=TRUE,scale=TRUE))
+
+full$MMRAcquisitionRetailAveragePrice<-as.numeric(scale(full$MMRAcquisitionRetailAveragePrice,center=TRUE,scale=TRUE))
+full$MMRAcquisitonRetailCleanPrice<-as.numeric(scale(full$MMRAcquisitonRetailCleanPrice,center=TRUE,scale=TRUE))
+
+full$MMRCurrentAuctionAveragePrice<-as.numeric(scale(full$MMRCurrentAuctionAveragePrice,center=TRUE,scale=TRUE))
+full$MMRCurrentAuctionCleanPrice<-as.numeric(scale(full$MMRCurrentAuctionCleanPrice,center=TRUE,scale=TRUE))
+
+full$MMRCurrentRetailAveragePrice<-as.numeric(scale(full$MMRCurrentRetailAveragePrice,center=TRUE,scale=TRUE))
+full$MMRCurrentRetailCleanPrice<-as.numeric(scale(full$MMRCurrentRetailCleanPrice,center=TRUE,scale=TRUE))
+
+full_scale<-full[,c("MMRAcquisitionAuctionAveragePrice","MMRAcquisitionAuctionCleanPrice","MMRAcquisitionRetailAveragePrice","MMRAcquisitonRetailCleanPrice",
+"MMRCurrentAuctionAveragePrice","MMRCurrentAuctionCleanPrice","MMRCurrentRetailAveragePrice","MMRCurrentRetailCleanPrice")]
+barplot(sapply(full_scale,var),horiz = T,las=1,cex.names = 0.8,col="orange",main="Before scale - Regular",axisnames=FALSE)
+
+
+full$VehBCost<-as.numeric(scale(full$VehBCost,center=TRUE,scale=TRUE))
+full$VehOdo<-as.numeric(scale(full$VehOdo,center=TRUE,scale=TRUE))
+full$WarrantyCost<-as.numeric(scale(full$WarrantyCost,center=TRUE,scale=TRUE))
+
+
+
+
+full$MMR1<-(full$MMRAcquisitionAuctionAveragePrice-full$MMRAcquisitionAuctionCleanPrice)
+full$MMR2<-(full$MMRAcquisitionAuctionAveragePrice-full$MMRAcquisitonRetailCleanPrice)
+full$MMR3<-(full$MMRAcquisitionAuctionAveragePrice-full$MMRCurrentAuctionCleanPrice)
+full$MMR4<-(full$MMRAcquisitionAuctionAveragePrice-full$MMRCurrentRetailCleanPrice)
+full$MMR5<-(full$MMRAcquisitionAuctionAveragePrice-full$VehBCost)
+full$MMR6<-(full$MMRAcquisitionAuctionAveragePrice-full$WarrantyCost)
+
+full$MMR7<-(full$MMRAcquisitionAuctionCleanPrice-full$MMRAcquisitionRetailAveragePrice)
+full$MMR8<-(full$MMRAcquisitionAuctionCleanPrice-full$MMRCurrentAuctionAveragePrice)
+full$MMR9<-(full$MMRAcquisitionAuctionCleanPrice-full$MMRCurrentRetailAveragePrice)
+
+
+full$MMRAcquisitionAuctionAveragePrice<-NULL
+full$MMRAcquisitionAuctionCleanPrice<-NULL
+full$MMRAcquisitionRetailAveragePrice<-NULL
+full$MMRAcquisitonRetailCleanPrice<-NULL
+full$MMRCurrentAuctionAveragePrice<-NULL
+full$MMRCurrentAuctionCleanPrice<-NULL
+full$MMRCurrentRetailAveragePrice<-NULL
+full$MMRCurrentRetailCleanPrice<-NULL
+full$VehBCost<-NULL
+full$WarrantyCost<-NULL
+names(full)
+
+
+
+
+
+
+
+
+
+
+
+
+
